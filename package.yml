@@ -1,0 +1,56 @@
+package: cloud.lazycat.app.alfio
+version: 2.0.0-M5.2609-3
+name: Alf.io
+description: An open-source event attendance and ticket reservation system.
+author: Alf.io Project
+license: GPL-3.0
+homepage: https://github.com/alfio-event/alf.io
+locales:
+  zh-CN:
+    name: Alf.io
+    description: Alf.io 是一个开源的活动与会者管理与门票预订系统，支持发布活动、在线售票、签到核验与活动数据分析。
+    usage: |
+      Alf.io 面向活动组织者，用于发布活动、管理票种与现场签到。
+
+      打开应用即进入后台（Alf.io Admin），账号密码已自动填好并自动登录，不需要手打；
+      登录相关说明：安装时也可以在应用设置里查看/修改管理员用户名与密码。
+
+      首次使用：
+      1. 打开应用 → 自动进入后台。先在「Organizations」里新增一个组织（alf.io 要求先有组织才能建活动）
+      2. 在「Events」里新建活动，配置时间、地点、票种与价格
+      3. 发布活动后会得到公开购票链接（形如 /event/xxxx），把链接发给参与者即可在线选票
+      4. 活动当天用「Check-in」核验门票、扫码入场
+
+      说明：
+      - 应用首页（/）是给参与者的公开活动列表；没有活动时是空列表，所以这里默认直接进后台，
+        需要看售票页时可在后台点「Public page」或直接访问活动链接
+      - 数据库存储在 /lzcapp/var 下，升级不会丢失
+      - 邮件通知可在后台「Configuration → E-Mail」里配置 SMTP
+      - 界面目前为英文（上游未提供中文语言包）
+  en-US:
+    name: Alf.io
+    description: An open-source event attendance management and ticket reservation system.
+    usage: |
+      Alf.io is an open-source event management and ticketing system for organizers.
+
+      Opening the app takes you straight to the back office (Alf.io Admin). The admin
+      credentials are filled in and submitted automatically, so there is nothing to type.
+
+      Getting started:
+      1. Open the app - you land in the back office. Create an organization under
+         "Organizations" first (alf.io requires one before creating events).
+      2. Create an event under "Events" and configure time, location, ticket types and pricing.
+      3. Publish the event to get the public ticket link (e.g. /event/xxxx) and share it.
+      4. On the event day, check in attendees with the "Check-in" tool.
+
+      Notes:
+      - The app root (/) is the public event list for attendees; when there are no events yet
+        it is empty, so the entry point goes to the back office instead. Use the event link
+        (or "Public page" in the back office) to view the ticket shop.
+      - The database lives under /lzcapp/var and survives upgrades.
+      - SMTP can be configured in the back office under "Configuration -> E-Mail".
+      - The user interface is currently English only (upstream ships no Chinese locale).
+permissions:
+  required:
+    - net.internet
+  optional: []

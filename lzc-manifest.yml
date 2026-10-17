@@ -1,0 +1,110 @@
+usage: alfio
+application:
+  subdomain: alfio
+  health_check:
+    test_url: http://alfio:8080/healthz
+    disable: false
+    start_period: 120s
+    timeout: 5s
+  upstreams:
+    - location: /
+      backend: http://alfio:8080
+  injects:
+    # 免密登录。
+    # alf.io 的后台用的是**表单登录**（上游 WebSecurityConfig.FormBasedWebSecurity：
+    # loginPage=/authentication、loginProcessingUrl=/authenticate）。
+    # 打开 /admin/ 会先 302 到 /authentication，**真正渲染登录页的是 /authentication 这个请求**，
+    # 上一版注入只写了 /admin/ 与 /login，所以脚本从未挂到登录页上 —— 用户永远要手打密码，
+    # 打不出来就只能看到空首页（对应驳回「安装登陆进去之后找不到其他功能」）。
+    # 另外注意：**不能**用 request 注入 Authorization: Basic 头来免密 ——
+    # 上游对「带 Authorization 头的请求」走另一条安全链，那条链对 /admin/api/** 是 denyAll，
+    # 会把后台所有接口打死。
+    - id: alfio-login-autofill
+      'on': browser
+      auth_required: false
+      when:
+        - /authentication
+        - /authentication?*
+        - /admin
+        - /admin/*
+      do:
+        - src: builtin://simple-inject-password
+          params:
+            user: '{{ index .U "login_user" }}'
+            password: '{{ index .U "login_password" }}'
+            userSelector: 'input[name=username]'
+            passwordSelector: 'input[name=password]'
+            # 登录页上有隐藏的 _csrf，只填空字段，避免把 CSRF token 抹掉导致提交失败
+            onlyFillEmpty: true
+    # 入口直达：alf.io 的根路径是「公开活动列表」，没建活动时就是一张
+    # "Choose your Event / No public events found" 的空页、且页面上没有任何通往后台的入口
+    # （评审截图正是这一页）。这里直接送到后台，打开应用即见全部功能。
+    # 参会者拿到的是活动链接（/event/...），不受影响。
+    - id: alfio-open-admin
+      'on': browser
+      auth_required: false
+      when:
+        - /*
+      do:
+        - src: |
+            (function () {
+              var p = location.pathname;
+              if (p === "/" || p === "") { location.replace("/admin/"); }
+            })();
+services:
+  admin-init:
+    image: registry.lazycat.cloud/wans/library/postgres:54b52fdd68074990
+    depends_on:
+      - postgres
+    environment:
+      PGPASSWORD: alfio
+      TZ: Asia/Shanghai
+      # 与 inject 用同一组部署参数，保证「注入的密码」==「数据库里的密码」
+      LZC_ADMIN_USER: '{{ index .U "login_user" }}'
+      LZC_ADMIN_PASSWORD: '{{ index .U "login_password" }}'
+    command: /bin/sh /lzcapp/pkg/content/admin-init.sh
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'true'
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+  alfio:
+    image: registry.lazycat.cloud/wans/alfio/alf.io:67d5c2f704810554
+    depends_on:
+      - postgres
+    environment:
+      SPRING_PROFILES_ACTIVE: jdbc-session
+      POSTGRES_PORT_5432_TCP_ADDR: postgres
+      POSTGRES_PORT_5432_TCP_PORT: '5432'
+      POSTGRES_ENV_POSTGRES_DB: alfio
+      POSTGRES_ENV_POSTGRES_USERNAME: alfio
+      POSTGRES_ENV_POSTGRES_PASSWORD: alfio
+      TZ: Asia/Shanghai
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -q -O - http://127.0.0.1:8080/healthz >/dev/null 2>&1 || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+  postgres:
+    image: registry.lazycat.cloud/wans/library/postgres:54b52fdd68074990
+    environment:
+      POSTGRES_DB: alfio
+      POSTGRES_USER: alfio
+      POSTGRES_PASSWORD: alfio
+      TZ: Asia/Shanghai
+    binds:
+      - /lzcapp/var/alfio-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -h 127.0.0.1 -p 5432 -U alfio -d postgres || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
